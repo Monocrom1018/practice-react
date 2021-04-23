@@ -17,12 +17,15 @@ import '../css/app.less';
 
 // Import App Component
 import App from '../components/app.jsx';
+import { RecoilRoot } from 'recoil';
 
 // Init F7 React Plugin
-Framework7.use(Framework7React)
+Framework7.use(Framework7React);
 
 // Mount React App
 ReactDOM.render(
-  React.createElement(App),
+  <RecoilRoot>
+    <App />
+  </RecoilRoot>,
   document.getElementById('app'),
 );

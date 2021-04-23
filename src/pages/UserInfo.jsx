@@ -1,13 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { f7, Navbar, Page, List, ListInput, Button } from 'framework7-react';
-import { showToastCenter, openPreloader } from '../../../js/utils';
-import { signup } from '@/common/api';
+import { getUserData, patchUserInfo } from '../common/api';
+import { showToastCenter, openPreloader } from '../js/utils';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 
-const SignUpSchema = Yup.object().shape({
-  name: Yup.string().required('필수 입력사항 입니다'),
-  email: Yup.string().email().required('필수 입력사항 입니다'),
+const UserInfoSchema = Yup.object().shape({
   password: Yup.string()
     .min(4, '길이가 너무 짧습니다')
     .max(50, '길이가 너무 깁니다')
@@ -19,7 +17,8 @@ const SignUpSchema = Yup.object().shape({
   detailAddress: Yup.string().required('필수 입력사항 입니다'),
 });
 
-const SignUpPage = () => {
+const UserInfoPage = () => {
+  const [userInfo, setUserInfo] = useState('');
   const [address, setAddress] = useState('');
   const [postCode, setPostCode] = useState('');
   const postCodeEl = useRef(null);
@@ -35,38 +34,45 @@ const SignUpPage = () => {
     }).embed(postCodeEl.current);
   };
 
+  useEffect(async () => {
+    const userData = await getUserData();
+    await setUserInfo(userData.data);
+    await setAddress(userData.data.address);
+  }, []);
+
   return (
-    <Page>
-      <Navbar title="회원가입" backLink={true} sliding={false}></Navbar>
-      <p className="font-semibole text-4xl text-center mt-5">insomenia</p>
+    <Page noToolbar>
+      {/* Top Navbar */}
+      <Navbar title="회원정보 수정" backLink={true} sliding={false}></Navbar>
+
+      {/* Page Contents */}
       <Formik
+        enableReinitialize
         initialValues={{
-          name: '',
-          email: '',
           password: '',
           password_confirmation: '',
-          phone: '',
-          detailAddress: '',
+          phone: userInfo?.phone,
+          detailAddress: userInfo?.detailAddress,
         }}
-        validationSchema={SignUpSchema}
+        validationSchema={UserInfoSchema}
         onSubmit={async (values, { setSubmitting }) => {
           setSubmitting(false);
+          openPreloader('처리 중 입니다');
           try {
-            openPreloader('처리 중 입니다');
-            await signup({
-              name: values.name,
-              email: values.email,
-              password: values.password,
-              phone: values.phone,
-              address: address,
-              detailAddress: values.detailAddress,
-            });
-
+            (
+              await patchUserInfo({
+                password: values.password,
+                phone: values.phone,
+                address: address,
+                detailAddress: values.detailAddress,
+              })
+            ).data;
             setTimeout(() => {
-              showToastCenter('가입을 환영합니다 :)');
+              showToastCenter('정보가 변경되었습니다');
               location.replace(`/`);
             }, 1000);
           } catch (error) {
+            f7.dialog.close();
             showToastCenter(error?.response?.data || error?.message);
           }
         }}
@@ -85,34 +91,24 @@ const SignUpPage = () => {
             <List noHairlinesMd>
               <div className="p-3 font-semibold bg-white">기본 정보</div>
               <ListInput
+                disabled
                 label={i18next.t('login.name')}
                 type="text"
                 name="name"
-                placeholder="이름을 입력해주세요"
-                clearButton
-                onChange={handleChange}
-                onBlur={handleBlur}
-                value={values.name}
-                errorMessageForce={true}
-                errorMessage={touched.name && errors.name}
+                value={userInfo?.name}
               />
               <ListInput
+                disabled
                 label={i18next.t('login.email')}
-                type="email"
+                type="text"
                 name="email"
-                placeholder="이메일을 입력해주세요"
-                clearButton
-                onChange={handleChange}
-                onBlur={handleBlur}
-                value={values.email}
-                errorMessageForce={true}
-                errorMessage={touched.email && errors.email}
+                value={userInfo?.email}
               />
               <ListInput
                 label={i18next.t('login.password')}
                 type="password"
                 name="password"
-                placeholder="비밀번호를 입력해주세요"
+                placeholder="새로운 비밀번호를 입력해주세요"
                 clearButton
                 onChange={handleChange}
                 onBlur={handleBlur}
@@ -187,7 +183,7 @@ const SignUpPage = () => {
                 className="button button-fill button-large disabled:opacity-50"
                 disabled={isSubmitting || !isValid}
               >
-                회원가입
+                정보수정
               </button>
             </div>
           </Form>
@@ -197,4 +193,4 @@ const SignUpPage = () => {
   );
 };
 
-export default SignUpPage;
+export default UserInfoPage;
